@@ -65,7 +65,10 @@ class videoPlayer:
 
         #영상의 남은 시간
         #남은 시간은 트랙바 옆에 생성한다.
-        self.showTime = Label(middle_frame, text=time.strftime('%M:%S', time.gmtime(0)))
+        # self.showTime = Label(middle_frame, text=time.strftime('%M:%S', time.gmtime(0)))
+        
+        #영상 재생 시간
+        self.showTime = Label(middle_frame, text=time.strftime('%M:%S', time.gmtime(0)) + "/" + time.strftime('%M:%S',time.gmtime(0)))
         self.showTime.pack(side=RIGHT, anchor=CENTER)
 
         #영상좌우넘기기버튼
@@ -89,30 +92,33 @@ class videoPlayer:
         self.btn_pause.grid(row=1, column=2)
 
         #영상 편집 버튼
-        self.postTimeLabel = Label(bottom_frame2, text="여기부터: ")
+        self.postTimeLabel = Label(bottom_frame2, text="현재 프레임을 기준으로 ")
         self.postTimeLabel.grid(row=0, column=0)
         self.inputpostTimestr = StringVar()
         self.inputpostTimebox = ttk.Entry(bottom_frame2, width=5, textvariable=self.inputpostTimestr)
         self.inputpostTimebox.grid(row=0, column=1)
         
-        self.secondstr = Label(bottom_frame2, text="초 ~ ")
+        self.secondstr = Label(bottom_frame2, text="초 전부터 ")
         self.secondstr.grid(row=0, column=2)
 
-        self.nextTimeLabel = Label(bottom_frame2, text="여기까지: ")
-        self.nextTimeLabel.grid(row=0, column=3)
+        # self.nextTimeLabel = Label(bottom_frame2, text="여기까지: ")
+        # self.nextTimeLabel.grid(row=0, column=3)
         self.inputnextTimestr = StringVar()
         self.inputnextTimebox = ttk.Entry(bottom_frame2, width=5, textvariable=self.inputnextTimestr)
         self.inputnextTimebox.grid(row=0, column=4)
 
-        self.secondstr = Label(bottom_frame2, text="초")
+        self.secondstr = Label(bottom_frame2, text="초 후까지")
         self.secondstr.grid(row=0, column=5)
 
-        self.fpsLabel = Label(bottom_frame2, text="fps: ")
+        self.fpsLabel = Label(bottom_frame2, text="초당")
         self.fpsLabel.grid(row=0, column=6)
 
         self.inputfpsstr = StringVar()
         self.inputfpsbox = ttk.Entry(bottom_frame2, width=5, textvariable=self.inputfpsstr)
         self.inputfpsbox.grid(row=0, column=7)
+        
+        self.fpsLabel2 = Label(bottom_frame2, text="프레임으로 저장")
+        self.fpsLabel2.grid(row=0, column=8)
 
         # self.cutVideo_btn = Button(bottom_frame2, text="편집하기", width=10, command=self.cut_video)
         # self.cutVideo_btn.grid(row=0, column=
@@ -153,6 +159,7 @@ class videoPlayer:
         self.time_total = math.floor(self.frame / self.fps)
         self.nowframe = self.cap.get(cv2.CAP_PROP_POS_FRAMES)
         self.time_remain = math.floor((self.frame - self.nowframe) / self.fps)
+        self.playtime = math.floor(self.nowframe / self.fps)
 
         # print(self.frame)
         print(self.fps)
@@ -165,8 +172,11 @@ class videoPlayer:
         self.canvas.config(width=width, height=height)
         self.trackbar.config(length=width, from_=0, to=self.frame)
         self.trackbar.set(0)
-        self.showTime.config(text=time.strftime('%M:%S', time.gmtime(self.time_remain)))
+        
+        #시간은 플레이시간/전체시간
+        self.showTime.config(text=time.strftime('%M:%S', time.gmtime(self.playtime)) + "/" + time.strftime('%M:%S', time.gmtime(self.time_total)))
 
+        #0번째 영상을 가져와서 Canvas에 띄워준다.
         self.photo = PIL.ImageTk.PhotoImage(image=PIL.Image.fromarray(frame))
         self.image_on_canvas = self.canvas.create_image(0, 0, anchor=NW, image=self.photo)
 
@@ -195,16 +205,22 @@ class videoPlayer:
         else:
             # 플레이 상태면 array인 frame을 PIL에서 이미지로 바꾸고 Canvas에 넣어준다.
             self.photo = PIL.ImageTk.PhotoImage(image = PIL.Image.fromarray(frame))
+            #기존에 Canvas에 있던 이미지와 바꾸는 방식
             self.canvas.itemconfig(self.image_on_canvas, image = self.photo)
 
             #현재frame의 값을 가져온다.
             self.nowframe = self.cap.get(cv2.CAP_PROP_POS_FRAMES)
 
             #전체frame에서 현재frame 값을 빼준 뒤, 초당 frame으로 나눠주면 남은 시간이 된다.
-            self.time_remain = math.floor((self.frame - self.nowframe) / self.fps)
+            # self.time_remain = math.floor((self.frame - self.nowframe) / self.fps)
+            # 플레이시간은 현재프레임에서 초당프레임을 나눠주면 현재 재생시간이 된다.
+            self.playtime = math.floor(self.nowframe / self.fps)
 
             #남은 시간을 보여준다
-            self.showTime.config(text=time.strftime('%M:%S', time.gmtime(self.time_remain)))
+            # self.showTime.config(text=time.strftime('%M:%S', time.gmtime(self.time_remain)))
+
+            #플레이시간을 보여준다.
+            self.showTime.config(text=time.strftime('%M:%S', time.gmtime(self.playtime)) + "/" + time.strftime('%M:%S',time.gmtime(self.time_total)))
 
             #트랙바에 현재 frame 갱신해준다.
             self.trackbar.set(self.nowframe + 1)
@@ -238,81 +254,97 @@ class videoPlayer:
             if e.errno != e.errno.EEXIST:
                 print("Failed to create directory!!!!!")
                 raise
+
+        #영상을 Trackbar위치로 가져와서 읽어오고 저장한다.
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, self.trackbar.get())
         ret, frame = self.cap.read()
         filename = path + self.Filename + "/" + self.Filename + "(" + str(self.trackbar.get()) + ")" + ".jpg"
         cv2.imwrite(filename, frame)
+
+        messagebox.showinfo(title='알림', message='저장이 완료 되었습니다.')
     
     #구간 저장
     #폴더가 없을 경우 영상 이름으로 폴더를 만들고 그 폴더 안에 저장한다.
     def section_save(self):
-        try:
-            if not (os.path.isdir(path + self.Filename)):
-                os.makedirs(os.path.join(path + self.Filename))
+        #모든 값을 입력했을 때만 작동
+        if self.inputpostTimestr.get() != "" and self.inputnextTimestr.get() != "" and self.inputfpsstr.get() != "":
+            try:
+                if not (os.path.isdir(path + self.Filename)):
+                    os.makedirs(os.path.join(path + self.Filename))
+    
+            except OSError as e:
+                if e.errno != e.errno.EEXIST:
+                    print("Failed to create directory!!!!!")
+                    raise
+    
+            # 영상이 재생되고 있을 수도 있어서 영상을 정지해준다.
+            if not self.pause:
+                self.pause_video()
+            # print(self.inputpostTimestr.get())
+            # print(self.inputnextTimestr.get())
+            # print(self.inputfpsstr.get())
+    
+            success, image = self.cap.read()
+            success = True
+    
+            # 현재frame은 트랙바값으로 한다.
+            nowFrame = self.trackbar.get()
+            # 현재Frame에서 앞으로 몇초, 뒤로 몇초를 잘라야한다.
+            # 입력한 값을 가져오고, 현재 frame에서 입력한 값과 영상의 초당 프레임을 곱한 값(몇초 앞으로, 뒤로 갈지 값)을 빼준다.
+            postFrame = nowFrame - (int(self.inputpostTimestr.get()) * self.fps)
+            nextFrame = nowFrame + (int(self.inputnextTimestr.get()) * self.fps)
+    
+            # print("nowframe: " + str(nowFrame))
+            # print("postTimer: " + str(int(self.inputpostTimestr.get())))
+            # print("fps: " + str(self.fps))
+            # print("postframe: " + str(postFrame))
+    
+            # 위의 값이 0보다 작거나 영상 길이보다 길면 맞춰준다.
+            if (postFrame < 0):
+                postFrame = 0
+            if (nextFrame > self.frame):
+                nextFrame = self.frame
+    
+            # 저장하는 코드
+            #초당 몇 frame으로 할지 값을 정한다.
+            frame_rate = int(self.inputfpsstr.get())
 
-        except OSError as e:
-            if e.errno != e.errno.EEXIST:
-                print("Failed to create directory!!!!!")
-                raise
+            #입력한 값이 기존 영상의 fps보다 높다면 기존 영상의 fps로 바꿔준다.
+            if frame_rate > self.fps:
+                frame_rate = self.fps
+                messagebox.showinfo(title='알림', message='입력한 초당 프레임이 기존 영상보다 커서 초당 ' + str(self.fps) + '프레임으로 변환됩니다.')
+    
+            #count변수는 현재frame에서 몇초 이전을 간 값을 맞춰준다.
+            count = postFrame
+            # print("post:" + str(postFrame))
+    
+            #체크 할 frame 가져오기
+            n_frame = 0
+            #영상의 끝까지 반복한다.
+            while count <= nextFrame:
+                print(count)
+                #영상프레임을 count에 입력한 값으로 이동한다.
+                self.cap.set(cv2.CAP_PROP_POS_FRAMES, count)
+                success, image = self.cap.read()
+                # print(count)
+                #count가 이전프레임과 다음 프레임 사이까지 그리고 count를 전체frame으로 나눠준 나머지가 초당 몇 frame으로 한 값보다 작을때 이미지를 저장한다.
+                if(postFrame <= count <= nextFrame and int(n_frame%self.fps)<frame_rate):
+                    filename = path + self.Filename + "/" + self.Filename + "(" + str(count) + ")" + ".jpg"
+                    cv2.imwrite(filename, image)
+                #목표까지 계속 더한다
+                count += 1
+                n_frame += 1
+    
+            #끝나면 알림
+            messagebox.showinfo(title='알림', message='저장이 완료 되었습니다.')
 
-        # 영상이 재생되고 있을 수도 있어서 영상을 정지해준다.
-        if not self.pause:
-            self.pause_video()
-        # print(self.inputpostTimestr.get())
-        # print(self.inputnextTimestr.get())
-        # print(self.inputfpsstr.get())
-
-        success, image = self.cap.read()
-        success = True
-
-        # 현재frame은 트랙바값으로 한다.
-        nowFrame = self.trackbar.get()
-        # 현재Frame에서 앞으로 몇초, 뒤로 몇초를 잘라야한다.
-        # 입력한 값을 가져오고, 현재 frame에서 입력한 값과 영상의 초당 프레임을 곱한 값(몇초 앞으로, 뒤로 갈지 값)을 빼준다.
-        postFrame = nowFrame - (int(self.inputpostTimestr.get()) * self.fps)
-        nextFrame = nowFrame + (int(self.inputnextTimestr.get()) * self.fps)
-
-        # print("nowframe: " + str(nowFrame))
-        # print("postTimer: " + str(int(self.inputpostTimestr.get())))
-        # print("fps: " + str(self.fps))
-        # print("postframe: " + str(postFrame))
-
-        # 위의 값이 0보다 작거나 영상 길이보다 길면 맞춰준다.
-        if (postFrame < 0):
-            postFrame = 0
-        if (nextFrame > self.frame):
-            nextFrame = self.frame
-
-        # 저장하는 코드
-        #초당 몇 frame으로 할지 값을 정한다.
-        frame_rate = int(self.inputfpsstr.get())
-
-        #count변수는 현재frame에서 몇초 이전을 간 값을 맞춰준다.
-        count = postFrame
-        # print("post:" + str(postFrame))
-
-        #체크 할 frame 가져오기
-        n_frame = 0
-        #영상의 끝까지 반복한다.
-        while count <= nextFrame:
-            print(count)
-            #영상프레임을 count에 입력한 값으로 이동한다.
-            self.cap.set(cv2.CAP_PROP_POS_FRAMES, count)
-            # print(count)
-            #count가 이전프레임과 다음 프레임 사이까지 그리고 count를 전체frame으로 나눠준 나머지가 초당 몇 frame으로 한 값보다 작을때 이미지를 저장한다.
-            if(postFrame <= count <= nextFrame and int(n_frame%self.fps)<frame_rate):
-                filename = path + self.Filename + "/" + self.Filename + "(" + str(count) + ")" + ".jpg"
-                cv2.imwrite(filename, image)
-            #목표까지 계속 더한다
-            count += 1
-            n_frame += 1
-
-        #끝나면 알림
-        messagebox.showinfo(title='알림', message='저장이 완료 되었습니다.')
+        else:
+            messagebox.showinfo(title='알림', message='값을 모두 입력해주세요.')
 
     def ButtonState(self, event):
         print("Clicked!!!")
 
+    #현재 Trackbar의 값에서 -1을 하고 그 값에 해당하는 frame으로 이동해서 Canvas에 띄워준다. 재생시간도 변경해준다.
     def to_leftframe(self):
         leftlocation = self.trackbar.get() - 1
         if leftlocation < 0:
@@ -327,10 +359,16 @@ class videoPlayer:
         self.nowframe = self.cap.get(cv2.CAP_PROP_POS_FRAMES)
         # 전체frame에서 현재frame 값을 빼준 뒤, 초당 frame으로 나눠주면 남은 시간이 된다.
         self.time_remain = math.floor((self.frame - self.nowframe) / self.fps)
+
+        # 플레이시간은 현재프레임에서 초당프레임을 나눠주면 현재 재생시간이 된다.
+        self.playtime = math.floor(self.nowframe / self.fps)
+
         # 남은 시간을 보여준다
-        self.showTime.config(text=time.strftime('%M:%S', time.gmtime(self.time_remain)))
+        # self.showTime.config(text=time.strftime('%M:%S', time.gmtime(self.time_remain)))
+        #플레이시간을 보여준다.
+        self.showTime.config(text=time.strftime('%M:%S', time.gmtime(self.playtime)) + "/" + time.strftime('%M:%S',time.gmtime(self.time_total)))
 
-
+    # 현재 Trackbar의 값에서 +1을 하고 그 값에 해당하는 frame으로 이동해서 Canvas에 띄워준다. 재생시간도 변경해준다.
     def to_rightframe(self):
         rightlocation = self.trackbar.get() + 1
         if rightlocation > self.frame:
@@ -345,8 +383,14 @@ class videoPlayer:
         self.nowframe = self.cap.get(cv2.CAP_PROP_POS_FRAMES)
         # 전체frame에서 현재frame 값을 빼준 뒤, 초당 frame으로 나눠주면 남은 시간이 된다.
         self.time_remain = math.floor((self.frame - self.nowframe) / self.fps)
+        #플레이시간은 현재프레임에서 초당프레임을 나눠주면 현재 재생시간이 된다.
+        self.playtime = math.floor(self.nowframe / self.fps)
+
         # 남은 시간을 보여준다
-        self.showTime.config(text=time.strftime('%M:%S', time.gmtime(self.time_remain)))
+        # self.showTime.config(text=time.strftime('%M:%S', time.gmtime(self.time_remain)))
+        # 플레이시간을 보여준다.
+        self.showTime.config(text=time.strftime('%M:%S', time.gmtime(self.playtime)) + "/" + time.strftime('%M:%S',time.gmtime(self.time_total)))
+
 
 
 
